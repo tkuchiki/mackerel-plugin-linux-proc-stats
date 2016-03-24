@@ -296,7 +296,7 @@ func main() {
 	optPIDFile := flag.String("pidfile", "", "PID file")
 	optTempfile := flag.String("tempfile", "", "Temp file name")
 	optFollowChildProcesses := flag.Bool("follow-child-processes", false, "Follow child processes")
-	optMetricKey := flag.String("metric-key", "", "Metric key")
+	optMetricKey := flag.String("metric-key-prefix", "", "Metric key prefix")
 	optVersion := flag.Bool("version", false, "Version")
 	flag.Parse()
 
