@@ -316,6 +316,11 @@ func main() {
 			logger.Errorf("Failed to read /proc/%s/stat. %s", pid, err)
 		}
 	}
+	if pid == "" {
+		logger.Errorf("Not found pid")
+		os.Exit(1)
+	}
+
 	metricKey = *optMetricKey
 
 	var procStats LinuxProcStatsPlugin
