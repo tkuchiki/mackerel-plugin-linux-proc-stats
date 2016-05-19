@@ -62,26 +62,40 @@ func (p *Process) CPUUsage() float64 {
 type LinuxProcStatsPlugin struct {
 	Tempfile             string
 	Pid                  string
+	Pids                 []string
 	FollowChildProcesses bool
 }
 
 // FetchMetrics interface for mackerelplugin
 func (lp LinuxProcStatsPlugin) FetchMetrics() (stats map[string]interface{}, err error) {
-	var ps Processes
-	p, err := readProcPIDStat(statFile(lp.Pid))
-	if err != nil {
-		return stats, err
-	}
+	ps := make(Processes, 0)
 
-	ps = append(ps, p)
+	if len(lp.Pids) > 0 {
+		for _, pid := range lp.Pids {
+			p, err := readProcPIDStat(statFile(pid))
+			if err != nil {
+				return stats, err
+			}
 
-	if lp.FollowChildProcesses {
-		options := []string{"--ppid", lp.Pid, "-o", "pid", "--no-headers"}
-		ps, err = childStats(ps, options)
+			ps = append(ps, p)
+		}
+	} else {
+		p, err := readProcPIDStat(statFile(lp.Pid))
 		if err != nil {
 			return stats, err
 		}
+
+		ps = append(ps, p)
+
+		if lp.FollowChildProcesses {
+			options := []string{"--ppid", lp.Pid, "-o", "pid", "--no-headers"}
+			ps, err = childStats(ps, options)
+			if err != nil {
+				return stats, err
+			}
+		}
 	}
+
 	running, numThreads, vSize, rss, cpuUsage := sumStats(ps)
 	stats = make(map[string]interface{})
 	stats["running"] = running
@@ -292,17 +306,18 @@ func getUptime() (float64, error) {
 	return float64(sysinfo.Uptime), err
 }
 
-func matchPIDPattern(pat string) (pid string, err error) {
+func getPIDsByProcessPattern(pat string) (pids []string, err error) {
 	r, err := regexp.Compile(pat)
 	if err != nil {
-		return pid, fmt.Errorf("Failed to compile %s. %s", pat, err)
+		return pids, fmt.Errorf("Failed to compile %s. %s", pat, err)
 	}
 
 	res, err := getPSResult()
 	if err != nil {
-		return pid, fmt.Errorf("Failed to getPSResult. %s", err)
+		return pids, fmt.Errorf("Failed to getPSResult. %s", err)
 	}
 
+	pids = make([]string, 0)
 	p, pp := strconv.Itoa(os.Getpid()), strconv.Itoa(os.Getppid())
 	for _, ps := range res {
 		if !r.MatchString(ps.cmd) {
@@ -314,10 +329,10 @@ func matchPIDPattern(pat string) (pid string, err error) {
 		if ps.pid == pp {
 			continue
 		}
-		pid = ps.pid
-		break
+		pids = append(pids, ps.pid)
 	}
-	return pid, nil
+
+	return pids, nil
 }
 
 type psResult struct {
@@ -361,7 +376,7 @@ func parsePSResult(line string) (r psResult, err error) {
 func main() {
 	optPID := flag.String("pid", "", "PID")
 	optPIDFile := flag.String("pidfile", "", "PID file")
-	optPIDPat := flag.String("pid-pattern", "", "Match a command against this pattern")
+	optProcPat := flag.String("process-pattern", "", "Match a command against this pattern")
 	optTempfile := flag.String("tempfile", "", "Temp file name")
 	optFollowChildProcesses := flag.Bool("follow-child-processes", false, "Follow child processes")
 	optMetricKey := flag.String("metric-key-prefix", "", "Metric key prefix")
@@ -374,30 +389,30 @@ func main() {
 	}
 
 	var pid string
+	var pids []string
 	var err error
 
-	if *optPID != "" {
-		pid = *optPID
-	} else if *optPIDFile != "" {
-		pid, err = readPIDFile(*optPIDFile)
+	if *optProcPat != "" {
+		pids, err = getPIDsByProcessPattern(*optProcPat)
 		if err != nil {
-			logger.Errorf("Failed to read /proc/%s/stat. %s", pid, err)
+			logger.Errorf("Failed to match %s. %s", *optProcPat, err)
 		}
-	} else if *optPIDPat != "" {
-		pid, err = matchPIDPattern(*optPIDPat)
-		if err != nil {
-			logger.Errorf("Failed to match %s. %s", *optPIDPat, err)
+	} else {
+		if *optPID != "" {
+			pid = *optPID
+		} else {
+			pid, err = readPIDFile(*optPIDFile)
+			if err != nil {
+				logger.Errorf("Failed to read /proc/%s/stat. %s", pid, err)
+			}
 		}
-	}
-	if pid == "" {
-		logger.Errorf("Not found pid")
-		os.Exit(1)
 	}
 
 	metricKey = *optMetricKey
 
 	var procStats LinuxProcStatsPlugin
 	procStats.Pid = pid
+	procStats.Pids = pids
 	procStats.FollowChildProcesses = *optFollowChildProcesses
 
 	uptime, err = getUptime()
