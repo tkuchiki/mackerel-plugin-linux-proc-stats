@@ -4,7 +4,7 @@ Linux processes metrics plugin for mackerel.io agent.
 ## Synopsis
 
 ```shell
-mackerel-plugin-linux-proc-stats -pid=<pid>|-pidfile=<pidfile> [-metric-key-prefix=<metric-key-prefix>] [-tempfile=<tempfile>] [-follow-child-processes]
+mackerel-plugin-linux-proc-stats -pid=<pid>|-pidfile=<pidfile>|-process-pattern=<process pattern> [-metric-key-prefix=<metric-key-prefix>] [-tempfile=<tempfile>] [-follow-child-processes]
 ```
 
 ```shell
@@ -18,6 +18,8 @@ Usage of ./mackerel-plugin-linux-proc-stats:
         PID
   -pidfile string
         PID file
+  -process-pattern string
+        Match a command against this pattern
   -tempfile string
         Temp file name
   -version
@@ -38,6 +40,11 @@ command = "/path/to/mackerel-plugin-linux-proc-stats -pidfile /var/run/nginx.pid
 ```
 [plugin.metrics.linux_proc_stats]
 command = "/path/to/mackerel-plugin-linux-proc-stats -pidfile /var/run/mackerel-agent.pid"
+```
+
+```
+[plugin.metrics.linux_proc_stats]
+command = "/path/to/mackerel-plugin-linux-proc-stats -process-pattern 'nginx: master process'"
 ```
 
 ## Example
