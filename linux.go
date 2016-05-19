@@ -384,7 +384,7 @@ func main() {
 	flag.Parse()
 
 	if *optVersion {
-		fmt.Println("0.1")
+		fmt.Println("0.2")
 		os.Exit(0)
 	}
 
