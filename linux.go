@@ -393,7 +393,7 @@ func main() {
 	flag.Parse()
 
 	if *optVersion {
-		fmt.Println("0.2")
+		fmt.Println("0.3")
 		os.Exit(0)
 	}
 
