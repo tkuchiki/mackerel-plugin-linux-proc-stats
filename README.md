@@ -4,7 +4,7 @@ Linux processes metrics plugin for mackerel.io agent.
 ## Synopsis
 
 ```shell
-mackerel-plugin-linux-proc-stats -pid=<pid>|-pidfile=<pidfile>|-process-pattern=<process pattern> [-metric-key-prefix=<metric-key-prefix>] [-tempfile=<tempfile>] [-follow-child-processes]
+mackerel-plugin-linux-proc-stats -pid=<pid>|-pidfile=<pidfile>|-process-pattern=<process pattern> [-metric-key-prefix=<metric-key-prefix>] [-tempfile=<tempfile>] [-follow-child-processes] [-include-dead-children=0]
 ```
 
 ```shell
@@ -12,6 +12,8 @@ $ ./mackerel-plugin-linux-proc-stats --help
 Usage of ./mackerel-plugin-linux-proc-stats:
   -follow-child-processes
         Follow child processes
+  -include-dead-children
+        Include dead kids in cpu sum (default true)
   -metric-key-prefix string
         Metric key prefix
   -pid string
