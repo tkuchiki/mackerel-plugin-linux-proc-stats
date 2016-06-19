@@ -52,8 +52,12 @@ var cpuTick float64
 var metricKey string
 
 // CPUUsage retrieve cpu usage
-func (p *Process) CPUUsage() float64 {
-	total := p.UTime + p.STime + p.CUTime + p.CSTime
+func (p *Process) CPUUsage(includeDeadChildren bool) float64 {
+	total := p.UTime + p.STime
+	if includeDeadChildren {
+		total += p.CUTime + p.CSTime
+	}
+
 	sec := uptime - (p.StartTime / cpuTick)
 	return 100 * ((total / cpuTick) / sec)
 }
@@ -64,6 +68,7 @@ type LinuxProcStatsPlugin struct {
 	Pid                  string
 	Pids                 []string
 	FollowChildProcesses bool
+	IncludeDeadChildren  bool
 }
 
 // FetchMetrics interface for mackerelplugin
@@ -96,7 +101,7 @@ func (lp LinuxProcStatsPlugin) FetchMetrics() (stats map[string]interface{}, err
 		}
 	}
 
-	running, numThreads, vSize, rss, cpuUsage := sumStats(ps)
+	running, numThreads, vSize, rss, cpuUsage := sumStats(ps, lp.IncludeDeadChildren)
 	stats = make(map[string]interface{})
 	stats["running"] = running
 	stats["processes"] = float64(len(ps))
@@ -272,7 +277,10 @@ func childStats(ps Processes, options []string) (Processes, error) {
 	return ps, err
 }
 
-func sumStats(ps Processes) (running, numThreads, vSize, rss, cpuUsage float64) {
+func sumStats(
+	ps Processes,
+	includeDeadChildren bool,
+) (running, numThreads, vSize, rss, cpuUsage float64) {
 	for _, p := range ps {
 		if p.State == `R` {
 			running++
@@ -280,7 +288,7 @@ func sumStats(ps Processes) (running, numThreads, vSize, rss, cpuUsage float64) 
 		numThreads += p.NumThreads
 		vSize += p.VSize
 		rss += p.RSS
-		cpuUsage += p.CPUUsage()
+		cpuUsage += p.CPUUsage(includeDeadChildren)
 	}
 
 	return running, numThreads, vSize, rss, cpuUsage
@@ -381,6 +389,7 @@ func main() {
 	optFollowChildProcesses := flag.Bool("follow-child-processes", false, "Follow child processes")
 	optMetricKey := flag.String("metric-key-prefix", "", "Metric key prefix")
 	optVersion := flag.Bool("version", false, "Version")
+	optIncludeDeadChildren := flag.Bool("include-dead-children", true, "Include dead kids in cpu sum")
 	flag.Parse()
 
 	if *optVersion {
@@ -414,6 +423,7 @@ func main() {
 	procStats.Pid = pid
 	procStats.Pids = pids
 	procStats.FollowChildProcesses = *optFollowChildProcesses
+	procStats.IncludeDeadChildren = *optIncludeDeadChildren
 
 	uptime, err = getUptime()
 	if err != nil {
